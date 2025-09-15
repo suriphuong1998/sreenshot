@@ -1,4 +1,4 @@
-# screenshot Server
+# screenshot server gta5
 
 Script nhỏ cho phép bạn chụp ảnh tất cả trang phục GTA, phụ kiện/đối tượng hoặc xe cộ trên nền xanh lá.
 Bạn có thể sử dụng chúng cho kho đồ, cửa hàng trang phục hoặc cửa hàng xe.
