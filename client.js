@@ -98,11 +98,14 @@ async function takeScreenshotForObject(object, hash, entityType = 'object') {
     }
     let fov;
     let camPos;
+    let center;
+
+    // Lấy tọa độ object trước
+    const [objectX, objectY, objectZ] = GetEntityCoords(object, false);
 
     if (entityType === 'vehicle') {
         fov = Math.min(Math.max(modelSize.x, modelSize.y, modelSize.z) / 0.15 * 10, 60);
-        const [objectX, objectY, objectZ] = GetEntityCoords(object, false);
-        const center = {
+        center = {
             x: objectX + (minDimX + maxDimX) / 2,
             y: objectY + (minDimY + maxDimY) / 2,
             z: objectZ + (minDimZ + maxDimZ) / 2,
@@ -114,9 +117,8 @@ async function takeScreenshotForObject(object, hash, entityType = 'object') {
         };
     } else {
         fov = Math.min(Math.max(modelSize.x, modelSize.z) / 0.15 * 10, 60);
-        const [objectX, objectY, objectZ] = GetEntityCoords(object, false);
         const [fwdX, fwdY, fwdZ] = GetEntityForwardVector(object);
-        const center = {
+        center = {
             x: objectX + (minDimX + maxDimX) / 2,
             y: objectY + (minDimY + maxDimY) / 2,
             z: objectZ + (minDimZ + maxDimZ) / 2,
@@ -132,34 +134,24 @@ async function takeScreenshotForObject(object, hash, entityType = 'object') {
 
     cam = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', camPos.x, camPos.y, camPos.z, 0, 0, 0, fov, true, 0);
 
-    const center = {
-        x: objectX + (minDimX + maxDimX) / 2,
-        y: objectY + (minDimY + maxDimY) / 2,
-        z: objectZ + (minDimZ + maxDimZ) / 2,
-    };
-
     PointCamAtCoord(cam, center.x, center.y, center.z);
     SetCamActive(cam, true);
     RenderScriptCams(true, false, 0, true, false, 0);
 
     await Delay(50);
 
-    if (entityType === 'vehicle') {
-        // Vehicle: single screenshot
-        emitNet('takeScreenshot', `${hash}`, 'vehicles');
-        await Delay(2000);
-    } else {
-        // Object: rotate 360 degrees
-        const totalRotation = 360;
-        const steps = 36; // Number of steps for the rotation
-        const increment = totalRotation / steps; // Degree increment per step
-        for (let i = 0; i <= steps; i++) {
-            const newHeading = GetEntityHeading(object) + increment;
-            SetEntityHeading(object, newHeading % 360); // Rotate object
+    // Both vehicle and object: rotate 360 degrees
+    const totalRotation = 360;
+    const steps = 36; // Number of steps for the rotation
+    const increment = totalRotation / steps; // Degree increment per step
+    for (let i = 0; i <= steps; i++) {
+        const newHeading = GetEntityHeading(object) + increment;
+        SetEntityHeading(object, newHeading % 360); // Rotate entity
 
-            emitNet('takeScreenshot', `${hash}_${i}`, 'objects');
-            await Delay(2000);
-        }
+        const category = entityType === 'vehicle' ? 'vehicles' : 'objects';
+        const fullPath = `${category}/${hash}_${i}`;
+        emitNet('takeScreenshot', fullPath, 'objects');
+        await Delay(2000);
     }
     await Delay(2000);
     return;
