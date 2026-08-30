@@ -4,6 +4,7 @@
 const imagejs = require('image-js');
 
 const resName = GetCurrentResourceName();
+const config = JSON.parse(LoadResourceFile(resName, 'config.json') || '{}');
 
 function bufferFromScreenshotData(data) {
     const raw = String(data || '');
@@ -11,10 +12,38 @@ function bufferFromScreenshotData(data) {
     return Buffer.from(base64, 'base64');
 }
 
+function ensureRgba(image) {
+    if (image.alpha && image.channels >= 4) {
+        return image;
+    }
+    if (typeof image.rgba8 === 'function') {
+        return image.rgba8();
+    }
+    if (typeof image.convertColor === 'function') {
+        try {
+            return image.convertColor('RGBA');
+        } catch (error) {
+            return image;
+        }
+    }
+    return image;
+}
+
 function imageToPngBase64(image) {
+    if (typeof image.toBuffer === 'function') {
+        const encoded = image.toBuffer({ format: 'png' });
+        if (encoded && typeof encoded.then === 'function') {
+            return encoded.then((buf) => Buffer.from(buf).toString('base64'));
+        }
+        if (encoded) {
+            return Buffer.from(encoded).toString('base64');
+        }
+    }
+
     if (typeof image.toBase64 === 'function') {
         return String(image.toBase64('image/png') || '').replace(/^data:image\/\w+;base64,/, '');
     }
+
     return String(image.toDataURL() || '').replace(/^data:image\/\w+;base64,/, '');
 }
 
@@ -35,12 +64,70 @@ function savePngInResource(relativePath, pngBase64) {
     };
 }
 
+function isGreenScreenPixel(r, g, b) {
+    return g > r + b || (g >= 80 && g > r + 35 && g > b + 35);
+}
+
+function removeGreenScreen(image) {
+    for (let x = 0; x < image.width; x++) {
+        for (let y = 0; y < image.height; y++) {
+            const pixelArr = image.getPixelXY(x, y);
+            if (isGreenScreenPixel(pixelArr[0], pixelArr[1], pixelArr[2])) {
+                image.setPixelXY(x, y, [0, 0, 0, 0]);
+            }
+        }
+    }
+    return image;
+}
+
+function cropToContent(image) {
+    let minX = image.width;
+    let maxX = -1;
+    let minY = image.height;
+    let maxY = -1;
+
+    for (let x = 0; x < image.width; x++) {
+        for (let y = 0; y < image.height; y++) {
+            if ((image.getPixelXY(x, y)[3] || 0) > 0) {
+                minX = Math.min(minX, x);
+                maxX = Math.max(maxX, x);
+                minY = Math.min(minY, y);
+                maxY = Math.max(maxY, y);
+            }
+        }
+    }
+
+    if (maxX < minX || maxY < minY) {
+        return image;
+    }
+
+    const pad = 8;
+    minX = Math.max(0, minX - pad);
+    minY = Math.max(0, minY - pad);
+    maxX = Math.min(image.width - 1, maxX + pad);
+    maxY = Math.min(image.height - 1, maxY + pad);
+
+    return image.crop({
+        x: minX,
+        y: minY,
+        width: maxX - minX + 1,
+        height: maxY - minY + 1,
+    });
+}
+
 try {
-    console.log(`^2[screenshot]^7 Anh se duoc luu bang SaveResourceFile trong resource: ${resName}/images`);
+    console.log(`^2[screenshot]^7 Luu anh trong resource: ${resName}/images`);
 
     onNet('takeScreenshot', async (filename, type) => {
         const src = source;
         const relativePath = resourceRelativePath(type, filename);
+
+        if (config.overwriteExistingImages === false && LoadResourceFile(resName, relativePath)) {
+            if (config.debug) {
+                console.log(`^3[screenshot]^7 Bo qua file da co: ${relativePath}`);
+            }
+            return;
+        }
 
         exports['screenshot-basic'].requestClientScreenshot(
             src,
@@ -56,26 +143,17 @@ try {
 
                 try {
                     let image = await imagejs.Image.load(bufferFromScreenshotData(data));
-                    const croppedImage = image.crop({ x: image.width / 4.5, width: image.height });
+                    image = ensureRgba(image);
+                    image = removeGreenScreen(image);
+                    image = cropToContent(image);
 
-                    image.data = croppedImage.data;
-                    image.width = croppedImage.width;
-                    image.height = croppedImage.height;
-
-                    for (let x = 0; x < image.width; x++) {
-                        for (let y = 0; y < image.height; y++) {
-                            const pixelArr = image.getPixelXY(x, y);
-                            const r = pixelArr[0];
-                            const g = pixelArr[1];
-                            const b = pixelArr[2];
-
-                            if (g > r + b) {
-                                image.setPixelXY(x, y, [255, 255, 255, 0]);
-                            }
-                        }
+                    const pngBase64 = await imageToPngBase64(image);
+                    if (!pngBase64) {
+                        console.error(`^1[screenshot]^7 Khong encode duoc PNG: ${relativePath}`);
+                        return;
                     }
 
-                    const { ok, savedAs } = savePngInResource(relativePath, imageToPngBase64(image));
+                    const { ok, savedAs } = savePngInResource(relativePath, pngBase64);
                     if (!ok) {
                         console.error(`^1[screenshot]^7 SaveResourceFile that bai: ${savedAs || relativePath}`);
                         return;

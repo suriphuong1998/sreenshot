@@ -76,9 +76,10 @@ async function takeScreenshotForComponent(pedType, type, component, drawable, te
 	applyInvisibleHead(ped);
 
 	SetEntityRotation(ped, camInfo.rotation.x, camInfo.rotation.y, camInfo.rotation.z, 2, false);
+	await Delay(150);
 
 	const componentName = componentNames[component] || `component_${component}`;
-	const fileName = `${componentName}_${drawable}${texture ? `_${texture}`: ''}.png`;
+	const fileName = `${componentName}_${drawable}${texture ? `_${texture}` : ''}`;
 	const fullPath = `clothings/${pedType}/${componentName}/${fileName}`;
 	emitNet('takeScreenshot', fullPath, 'clothing');
 	await Delay(2000);
@@ -191,8 +192,7 @@ function shouldHideHeadWithResetFlag(type, component) {
 function applyInvisibleHead(targetPed) {
 	if (!targetPed) return;
 
-	// Drawable 0 texture 1 dung mesh dau rong trong stream/
-	SetPedComponentVariation(targetPed, 0, 0, 1, 0);
+	SetPedComponentVariation(targetPed, 0, -1, 0, 0);
 	SetPedComponentVariation(targetPed, 2, -1, 0, 0);
 
 	for (let overlay = 0; overlay <= 12; overlay++) {
