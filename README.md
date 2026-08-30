@@ -37,7 +37,15 @@ Thực thi lệnh `/screenshot` để bắt đầu quá trình chụp ảnh tran
 Hãy kiên nhẫn vì có thể mất một chút thời gian để hoàn thành, và nên không can thiệp vào PC của bạn trong quá trình này.
 
 **Kết quả:** Chụp tất cả trang phục và phụ kiện của cả nam và nữ
-**Cấu trúc lưu:** `clothings/male/legs/legs_3_1.png`, `clothings/female/tops/tops_5_2.png`
+**Cấu trúc lưu:** `images/clothing/clothings/male/legs/legs_3_1.png`, `images/clothing/clothings/female/tops/tops_5_2.png`
+
+Ảnh được lưu **trong thư mục resource** (cùng chỗ với `client.js`):
+
+`resources/<tên-resource>/images/`
+
+Khi resource start, console server sẽ in đường dẫn tuyệt đối, ví dụ:
+
+`[screenshot] Anh se duoc luu tai: F:/FXServer/resources/sreenshot/images`
 
 ### Chụp trang phục cụ thể
 Sử dụng lệnh `/customscreenshot` để chụp một trang phục cụ thể.
@@ -144,43 +152,33 @@ Tham số `camera_settings` cho phép tùy chỉnh góc chụp và vị trí cam
 - **Object**: Tự động tạo bằng `CreateObjectNoOffset()`, chụp 37 ảnh (360°)
 
 **Cấu trúc lưu:**
-- **Vehicle**: `vehicles/adder_0.png` đến `vehicles/adder_36.png`
-- **Object**: `objects/weapon_pistol_0.png` đến `objects/weapon_pistol_36.png`
+- **Vehicle**: `images/objects/vehicles/<hash>_0.png` đến `<hash>_36.png`
+- **Object**: `images/objects/objects/<hash>_0.png` đến `<hash>_36.png`
 
 ## Cấu trúc thư mục
 
+Ảnh nằm trong `images/` của resource này (không phải thư mục FiveM client):
+
 ```
-clothings/
-├── male/
-│   ├── legs/
-│   │   ├── legs_3_1.png
-│   │   └── ...
-│   ├── tops/
-│   │   ├── tops_5_2.png
-│   │   └── ...
-│   └── ...
-└── female/
-    ├── legs/
-    │   ├── legs_3_1.png
+images/
+├── clothing/
+│   └── clothings/
+│       ├── male/
+│       │   ├── legs/
+│       │   │   ├── legs_3_1.png
+│       │   │   └── ...
+│       │   └── tops/
+│       │       ├── tops_5_2.png
+│       │       └── ...
+│       └── female/
+│           └── ...
+└── objects/
+    ├── vehicles/
+    │   ├── 3078201489_0.png
     │   └── ...
-    └── ...
-
-vehicles/
-├── adder_0.png
-├── adder_1.png
-├── adder_2.png
-├── ...
-├── adder_36.png
-├── zentorno_0.png
-├── zentorno_1.png
-└── ...
-
-objects/
-├── weapon_pistol_0.png
-├── weapon_pistol_1.png
-├── weapon_pistol_2.png
-├── ...
-└── weapon_pistol_36.png
+    └── objects/
+        ├── 453432689_0.png
+        └── ...
 ```
 
 ## 💖 Hỗ trợ dự án
