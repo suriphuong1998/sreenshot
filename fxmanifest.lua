@@ -16,7 +16,11 @@ files {
 }
 
 client_script 'client.js'
-server_script 'server.js'
+
+server_scripts {
+    'server.lua',
+    'server.js'
+}
 
 dependencies {
 	'screenshot-basic',
