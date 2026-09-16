@@ -5,19 +5,52 @@ const config = JSON.parse(LoadResourceFile(GetCurrentResourceName(), 'config.jso
 const Delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
 // Component ID to name mapping
+const clothingNames = {
+	1: 'masks',
+	3: 'torso',
+	4: 'legs',
+	5: 'bags',
+	6: 'feet',
+	7: 'accessories',
+	8: 'undershirts',
+	9: 'bodyarmor',
+	10: 'decals',
+	11: 'tops',
+};
+
+const propNames = {
+	0: 'head',
+	1: 'glasses',
+	2: 'ears',
+	6: 'watches',
+	7: 'bracelets',
+};
+
+const screenshotTargets = {
+	masks: { type: 'CLOTHING', component: 1 },
+	mask: { type: 'CLOTHING', component: 1 },
+	torso: { type: 'CLOTHING', component: 3 },
+	legs: { type: 'CLOTHING', component: 4 },
+	bags: { type: 'CLOTHING', component: 5 },
+	feet: { type: 'CLOTHING', component: 6 },
+	accessories: { type: 'CLOTHING', component: 7 },
+	undershirts: { type: 'CLOTHING', component: 8 },
+	bodyarmor: { type: 'CLOTHING', component: 9 },
+	decals: { type: 'CLOTHING', component: 10 },
+	tops: { type: 'CLOTHING', component: 11 },
+	head: { type: 'PROPS', component: 0 },
+	hats: { type: 'PROPS', component: 0 },
+	glasses: { type: 'PROPS', component: 1 },
+	ears: { type: 'PROPS', component: 2 },
+	watches: { type: 'PROPS', component: 6 },
+	bracelets: { type: 'PROPS', component: 7 },
+};
+
 const componentNames = {
-	0: 'head',        // Mũ
-	1: 'glasses',     // Kính
-	2: 'ears',        // Tai nghe
-	3: 'torso',       // Áo trong
-	4: 'legs',        // Quần
-	5: 'bags',        // Túi
-	6: 'feet',        // Giày
-	7: 'accessories', // Phụ kiện
-	8: 'undershirts', // Áo trong
-	9: 'bodyarmor',   // Áo giáp
-	10: 'decals',     // Hình xăm
-	11: 'tops'        // Áo ngoài
+	...clothingNames,
+	...propNames,
+	0: 'head',
+	1: 'glasses',
 };
 
 let cam;
@@ -71,11 +104,11 @@ async function takeScreenshotForComponent(pedType, type, component, drawable, te
 	await Delay(50);
 
 	SetEntityRotation(ped, camInfo.rotation.x, camInfo.rotation.y, camInfo.rotation.z, 2, false);
-	HidePedHeadMesh(ped);
 
-	const componentName = componentNames[component] || `component_${component}`;
-	const fileName = `${componentName}_${drawable}${texture ? `_${texture}`: ''}.webp`;
-	const fullPath = `clothings/${pedType}/${componentName}/${fileName}`;
+	const names = type === 'PROPS' ? propNames : clothingNames;
+	const componentName = names[component] || `component_${component}`;
+	const fileName = `${componentName}_${drawable}${texture ? `_${texture}`: ''}.png`;
+	const fullPath = `${componentName}/${fileName}`;
 	emitNet('takeScreenshot', fullPath, 'clothing');
 	await Delay(2000);
 	return;
@@ -173,22 +206,6 @@ function ClearAllPedProps() {
 	}
 }
 
-function HidePedHeadMesh(targetPed) {
-	SetPedCanHeadIk(targetPed, false);
-	SetPedComponentVariation(targetPed, 2, -1, 0, 0);
-
-	const headCount = GetNumberOfPedDrawableVariations(targetPed, 0);
-	SetPedComponentVariation(targetPed, 0, headCount, 0, 0);
-	SetPedComponentVariation(targetPed, 0, -1, 0, 0);
-
-	SetPedHeadBlendData(targetPed, 0, 0, 0, 0, 0, 0, 0, 0, 0, false);
-	for (let overlay = 0; overlay <= 12; overlay++) {
-		SetPedHeadOverlay(targetPed, overlay, 255, 0.0);
-	}
-
-	SetHeadBlendPaletteColor(targetPed, 0, 255, 0);
-}
-
 async function ResetPedComponents() {
 
 	if (config.debug) console.log(`DEBUG: Resetting Ped Components`);
@@ -197,7 +214,7 @@ async function ResetPedComponents() {
 
 	await Delay(150);
 
-	HidePedHeadMesh(ped);
+	SetPedComponentVariation(ped, 0, 0, 1, 0); // Head (stream mp_*_freemode_01^head_000_r.ydd)
 	SetPedComponentVariation(ped, 1, 0, 0, 0); // Mask
 	SetPedComponentVariation(ped, 2, -1, 0, 0); // Hair
 	SetPedComponentVariation(ped, 7, 0, 0, 0); // Accessories
@@ -211,7 +228,6 @@ async function ResetPedComponents() {
 	SetPedHairColor(ped, 45, 15);
 
 	ClearAllPedProps();
-	HidePedHeadMesh(ped);
 
 	return;
 }
@@ -425,28 +441,15 @@ RegisterCommand('customscreenshot', async (source, args) => {
 
 	const gender = args[0].toLowerCase();
 	const componentName = args[1].toLowerCase();
-	
-	// Tìm component ID từ tên
-	let component = null;
-	for (const [id, name] of Object.entries(componentNames)) {
-		if (name === componentName) {
-			component = parseInt(id);
-			break;
-		}
-	}
-	
-	if (component === null) {
-		console.log(`ERROR: Invalid component name "${componentName}". Available: ${Object.values(componentNames).join(', ')}`);
+	const target = screenshotTargets[componentName];
+
+	if (!target) {
+		console.log(`ERROR: Invalid component name "${componentName}". Available: ${Object.keys(screenshotTargets).join(', ')}`);
 		return;
 	}
-	
-	// Tự động xác định CLOTHING hoặc PROPS dựa vào component ID
-	let type;
-	if (component === 0 || component === 1 || component === 2 || component === 6 || component === 7) {
-		type = 'PROPS';
-	} else {
-		type = 'CLOTHING';
-	}
+
+	const type = target.type;
+	const component = target.component;
 	
 	let drawable = args[2].toLowerCase() == 'all' ? args[2].toLowerCase() : parseInt(args[2]);
 	let prop = args[2].toLowerCase() == 'all' ? args[2].toLowerCase() : parseInt(args[2]);
@@ -464,12 +467,11 @@ RegisterCommand('customscreenshot', async (source, args) => {
 	}
 
 	if (args[3] != null) {
-		let cameraSettings = ''
+		let cameraSettingsJson = '';
 		for (let i = 3; i < args.length; i++) {
-			cameraSettings += args[i] + ' ';
+			cameraSettingsJson += args[i] + ' ';
 		}
-
-		cameraSettings = JSON.parse(cameraSettings);
+		cameraSettings = JSON.parse(cameraSettingsJson);
 	}
 
 
@@ -508,7 +510,7 @@ RegisterCommand('customscreenshot', async (source, args) => {
 			await Delay(50);
 			SetPlayerControl(playerId, false);
 
-			ResetPedComponents();
+			await ResetPedComponents();
 			await Delay(150);
 
 			if (drawable == 'all') {
@@ -673,7 +675,7 @@ setImmediate(() => {
 			help: 'generate custom clothing screenshots (auto-detects CLOTHING/PROPS)',
 			params: [
 				{name:"male/female/both", help:"The gender to take a screenshot of"},
-				{name:"component_name", help:`Component name: ${Object.values(componentNames).join(', ')}`},
+				{name:"component_name", help:`Component name: ${Object.keys(screenshotTargets).join(', ')}`},
 				{name:"drawable/all", help:"The drawable variation to take a screenshot of"},
 				{name:"camera settings", help:"The camera settings to use for the screenshot (optional)"},
 			]
