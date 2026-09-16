@@ -37,7 +37,7 @@ Thực thi lệnh `/screenshot` để bắt đầu quá trình chụp ảnh tran
 Hãy kiên nhẫn vì có thể mất một chút thời gian để hoàn thành, và nên không can thiệp vào PC của bạn trong quá trình này.
 
 **Kết quả:** Chụp tất cả trang phục và phụ kiện của cả nam và nữ
-**Cấu trúc lưu:** `clothings/male/legs/legs_3_1.png`, `clothings/female/tops/tops_5_2.png`
+**Cấu trúc lưu:** `images/clothings/male/legs/legs_3_1.png`, `images/clothings/female/tops/tops_5_2.png`
 
 ### Chụp trang phục cụ thể
 Sử dụng lệnh `/customscreenshot` để chụp một trang phục cụ thể.
@@ -144,43 +144,42 @@ Tham số `camera_settings` cho phép tùy chỉnh góc chụp và vị trí cam
 - **Object**: Tự động tạo bằng `CreateObjectNoOffset()`, chụp 37 ảnh (360°)
 
 **Cấu trúc lưu:**
-- **Vehicle**: `vehicles/adder_0.png` đến `vehicles/adder_36.png`
-- **Object**: `objects/weapon_pistol_0.png` đến `objects/weapon_pistol_36.png`
+- **Vehicle**: `images/vehicles/adder_0.png` đến `images/vehicles/adder_36.png`
+- **Object**: `images/objects/weapon_pistol_0.png` đến `images/objects/weapon_pistol_36.png`
 
 ## Cấu trúc thư mục
 
 ```
-clothings/
-├── male/
-│   ├── legs/
-│   │   ├── legs_3_1.png
+images/
+├── clothings/
+│   ├── male/
+│   │   ├── legs/
+│   │   │   ├── legs_3_1.png
+│   │   │   └── ...
+│   │   ├── tops/
+│   │   │   ├── tops_5_2.png
+│   │   │   └── ...
 │   │   └── ...
-│   ├── tops/
-│   │   ├── tops_5_2.png
-│   │   └── ...
+│   └── female/
+│       ├── legs/
+│       │   ├── legs_3_1.png
+│       │   └── ...
+│       └── ...
+├── vehicles/
+│   ├── adder_0.png
+│   ├── adder_1.png
+│   ├── adder_2.png
+│   ├── ...
+│   ├── adder_36.png
+│   ├── zentorno_0.png
+│   ├── zentorno_1.png
 │   └── ...
-└── female/
-    ├── legs/
-    │   ├── legs_3_1.png
-    │   └── ...
-    └── ...
-
-vehicles/
-├── adder_0.png
-├── adder_1.png
-├── adder_2.png
-├── ...
-├── adder_36.png
-├── zentorno_0.png
-├── zentorno_1.png
-└── ...
-
-objects/
-├── weapon_pistol_0.png
-├── weapon_pistol_1.png
-├── weapon_pistol_2.png
-├── ...
-└── weapon_pistol_36.png
+└── objects/
+    ├── weapon_pistol_0.png
+    ├── weapon_pistol_1.png
+    ├── weapon_pistol_2.png
+    ├── ...
+    └── weapon_pistol_36.png
 ```
 
 ## 💖 Hỗ trợ dự án

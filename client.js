@@ -26,6 +26,16 @@ const propNames = {
 	7: 'bracelets',
 };
 
+function firstClothingDrawable(component) {
+	return component === 1 ? 1 : 0;
+}
+
+function shouldCaptureClothing(ped, component, drawable, texture) {
+	if (component === 1 && drawable === 0) return false;
+	if (!IsPedComponentVariationValid(ped, component, drawable, texture || 0)) return false;
+	return true;
+}
+
 const screenshotTargets = {
 	masks: { type: 'CLOTHING', component: 1 },
 	mask: { type: 'CLOTHING', component: 1 },
@@ -57,6 +67,7 @@ let cam;
 let camInfo;
 let ped;
 let interval;
+let screenshotSession = false;
 const playerId = PlayerId();
 let QBCore = null;
 
@@ -104,12 +115,14 @@ async function takeScreenshotForComponent(pedType, type, component, drawable, te
 	await Delay(50);
 
 	SetEntityRotation(ped, camInfo.rotation.x, camInfo.rotation.y, camInfo.rotation.z, 2, false);
+	HidePedHeadMesh(ped);
 
 	const names = type === 'PROPS' ? propNames : clothingNames;
 	const componentName = names[component] || `component_${component}`;
-	const fileName = `${componentName}_${drawable}${texture ? `_${texture}`: ''}.png`;
-	const fullPath = `${componentName}/${fileName}`;
-	emitNet('takeScreenshot', fullPath, 'clothing');
+	const textureIndex = texture == null ? 0 : texture;
+	const fileName = `${componentName}_${drawable}_${textureIndex}.png`;
+	const fullPath = `${pedType}/${componentName}/${fileName}`;
+	emitNet('takeScreenshot', fullPath, 'clothings');
 	await Delay(2000);
 	return;
 }
@@ -183,8 +196,7 @@ async function takeScreenshotForObject(object, hash, entityType = 'object') {
         SetEntityHeading(object, newHeading % 360); // Rotate entity
 
         const category = entityType === 'vehicle' ? 'vehicles' : 'objects';
-        const fullPath = `${category}/${hash}_${i}`;
-        emitNet('takeScreenshot', fullPath, 'objects');
+        emitNet('takeScreenshot', `${hash}_${i}`, category);
         await Delay(2000);
     }
     await Delay(2000);
@@ -206,6 +218,64 @@ function ClearAllPedProps() {
 	}
 }
 
+function HidePedHeadMesh(targetPed) {
+	if (!targetPed) return;
+
+	for (let overlay = 0; overlay <= 12; overlay++) {
+		SetPedHeadOverlay(targetPed, overlay, 255, 0.0);
+	}
+
+	SetPedComponentVariation(targetPed, 2, 0, 0, 0);
+	SetPedComponentVariation(targetPed, 0, 0, 0, 0);
+}
+
+function KeepHeadHidden(targetPed) {
+	if (!targetPed) return;
+	SetPedComponentVariation(targetPed, 0, 0, 0, 0);
+}
+
+function applyScreenshotHudThisFrame() {
+	DisplayRadar(false);
+	DisplayHud(false);
+	HideHudAndRadarThisFrame();
+	for (let hud = 1; hud <= 22; hud++) {
+		HideHudComponentThisFrame(hud);
+	}
+}
+
+function fillPedHealth(targetPed) {
+	if (!targetPed) return;
+	const maxHealth = GetPedMaxHealth(targetPed) || GetEntityMaxHealth(targetPed) || 200;
+	SetPedMaxHealth(targetPed, maxHealth);
+	SetEntityHealth(targetPed, maxHealth);
+	SetPedArmour(targetPed, 100);
+	SetEntityInvincible(targetPed, true);
+	SetPlayerInvincible(playerId, true);
+	ClearPedBloodDamage(targetPed);
+}
+
+function beginScreenshotSession() {
+	screenshotSession = true;
+	DisplayRadar(false);
+	DisplayHud(false);
+	fillPedHealth(PlayerPedId());
+}
+
+function endScreenshotSession() {
+	screenshotSession = false;
+	DisplayRadar(true);
+	DisplayHud(true);
+	const p = PlayerPedId();
+	SetEntityInvincible(p, false);
+	SetPlayerInvincible(playerId, false);
+}
+
+setTick(() => {
+	if (!screenshotSession) return;
+	applyScreenshotHudThisFrame();
+	fillPedHealth(PlayerPedId());
+});
+
 async function ResetPedComponents() {
 
 	if (config.debug) console.log(`DEBUG: Resetting Ped Components`);
@@ -214,9 +284,9 @@ async function ResetPedComponents() {
 
 	await Delay(150);
 
-	SetPedComponentVariation(ped, 0, 0, 1, 0); // Head (stream mp_*_freemode_01^head_000_r.ydd)
+	HidePedHeadMesh(ped);
 	SetPedComponentVariation(ped, 1, 0, 0, 0); // Mask
-	SetPedComponentVariation(ped, 2, -1, 0, 0); // Hair
+	SetPedComponentVariation(ped, 2, 0, 0, 0); // Hair
 	SetPedComponentVariation(ped, 7, 0, 0, 0); // Accessories
 	SetPedComponentVariation(ped, 5, 0, 0, 0); // Bags
 	SetPedComponentVariation(ped, 6, -1, 0, 0); // Shoes
@@ -228,6 +298,7 @@ async function ResetPedComponents() {
 	SetPedHairColor(ped, 45, 15);
 
 	ClearAllPedProps();
+	HidePedHeadMesh(ped);
 
 	return;
 }
@@ -288,6 +359,8 @@ async function LoadComponentVariation(ped, component, drawable, texture) {
 		await Delay(50);
 	}
 	SetPedComponentVariation(ped, component, drawable, texture, 0);
+	await Delay(50);
+	HidePedHeadMesh(ped);
 
 	return;
 }
@@ -340,6 +413,7 @@ RegisterCommand('screenshot', async (source, args) => {
 	if (!stopWeatherResource()) return;
 
 	DisableIdleCamera(true);
+	beginScreenshotSession();
 
 
 	await Delay(100);
@@ -370,6 +444,7 @@ RegisterCommand('screenshot', async (source, args) => {
 
 			interval = setInterval(() => {
 				ClearPedTasksImmediately(ped);
+				KeepHeadHidden(ped);
 			}, 1);
 
 			for (const type of Object.keys(config.cameraSettings)) {
@@ -379,7 +454,7 @@ RegisterCommand('screenshot', async (source, args) => {
 					const component = parseInt(stringComponent);
 					if (type === 'CLOTHING') {
 						const drawableVariationCount = GetNumberOfPedDrawableVariations(ped, component);
-						for (let drawable = 0; drawable < drawableVariationCount; drawable++) {
+						for (let drawable = firstClothingDrawable(component); drawable < drawableVariationCount; drawable++) {
 							const textureVariationCount = GetNumberOfPedTextureVariations(ped, component, drawable);
 							SendNUIMessage({
 								type: config.cameraSettings[type][component].name,
@@ -388,10 +463,12 @@ RegisterCommand('screenshot', async (source, args) => {
 							});
 							if (config.includeTextures) {
 								for (let texture = 0; texture < textureVariationCount; texture++) {
+									if (!shouldCaptureClothing(ped, component, drawable, texture)) continue;
 									await LoadComponentVariation(ped, component, drawable, texture);
 									await takeScreenshotForComponent(pedType, type, component, drawable, texture);
 								}
 							} else {
+								if (!shouldCaptureClothing(ped, component, drawable, 0)) continue;
 								await LoadComponentVariation(ped, component, drawable);
 								await takeScreenshotForComponent(pedType, type, component, drawable);
 							}
@@ -427,6 +504,7 @@ RegisterCommand('screenshot', async (source, args) => {
 	}
 	SetPedOnGround();
 	startWeatherResource();
+	endScreenshotSession();
 	SendNUIMessage({
 		end: true,
 	});
@@ -478,6 +556,7 @@ RegisterCommand('customscreenshot', async (source, args) => {
 	if (!stopWeatherResource()) return;
 
 	DisableIdleCamera(true);
+	beginScreenshotSession();
 
 
 	await Delay(100);
@@ -501,6 +580,7 @@ RegisterCommand('customscreenshot', async (source, args) => {
 
 			interval = setInterval(() => {
 				ClearPedTasksImmediately(ped);
+				KeepHeadHidden(ped);
 			}, 1);
 
 			const pedType = modelHash === GetHashKey('mp_m_freemode_01') ? 'male' : 'female';
@@ -519,7 +599,7 @@ RegisterCommand('customscreenshot', async (source, args) => {
 				});
 				if (type === 'CLOTHING') {
 					const drawableVariationCount = GetNumberOfPedDrawableVariations(ped, component);
-					for (drawable = 0; drawable < drawableVariationCount; drawable++) {
+					for (drawable = firstClothingDrawable(component); drawable < drawableVariationCount; drawable++) {
 						const textureVariationCount = GetNumberOfPedTextureVariations(ped, component, drawable);
 						SendNUIMessage({
 							type: config.cameraSettings[type][component].name,
@@ -528,10 +608,12 @@ RegisterCommand('customscreenshot', async (source, args) => {
 						});
 						if (config.includeTextures) {
 							for (let texture = 0; texture < textureVariationCount; texture++) {
+								if (!shouldCaptureClothing(ped, component, drawable, texture)) continue;
 								await LoadComponentVariation(ped, component, drawable, texture);
 								await takeScreenshotForComponent(pedType, type, component, drawable, texture, cameraSettings);
 							}
 						} else {
+							if (!shouldCaptureClothing(ped, component, drawable, 0)) continue;
 							await LoadComponentVariation(ped, component, drawable);
 							await takeScreenshotForComponent(pedType, type, component, drawable, null, cameraSettings);
 						}
@@ -559,16 +641,21 @@ RegisterCommand('customscreenshot', async (source, args) => {
 				}
 			} else if (!isNaN(drawable)) {
 				if (type === 'CLOTHING') {
+					if (!shouldCaptureClothing(ped, component, drawable, 0)) {
+						console.log(`SKIP: ${componentName} drawable ${drawable} is empty/invalid`);
+					} else {
 					const textureVariationCount = GetNumberOfPedTextureVariations(ped, component, drawable);
 
 					if (config.includeTextures) {
 						for (let texture = 0; texture < textureVariationCount; texture++) {
+							if (!shouldCaptureClothing(ped, component, drawable, texture)) continue;
 							await LoadComponentVariation(ped, component, drawable, texture);
 							await takeScreenshotForComponent(pedType, type, component, drawable, texture, cameraSettings);
 						}
 					} else {
 						await LoadComponentVariation(ped, component, drawable);
 						await takeScreenshotForComponent(pedType, type, component, drawable, null, cameraSettings);
+					}
 					}
 				} else if (type === 'PROPS') {
 					const textureVariationCount = GetNumberOfPedPropTextureVariations(ped, component, prop);
@@ -591,6 +678,7 @@ RegisterCommand('customscreenshot', async (source, args) => {
 	}
 	SetPedOnGround();
 	startWeatherResource();
+	endScreenshotSession();
 	SendNUIMessage({
 		end: true,
 	});
@@ -612,6 +700,7 @@ RegisterCommand('screenshotobject', async (source, args) => {
 	if (!stopWeatherResource()) return;
 
 	DisableIdleCamera(true);
+	beginScreenshotSession();
 
 	await Delay(100);
 
@@ -624,6 +713,8 @@ RegisterCommand('screenshotobject', async (source, args) => {
 		}
 	} else {
 		console.log('ERROR: Invalid model');
+		endScreenshotSession();
+		startWeatherResource();
 		return;
 	}
 
@@ -655,6 +746,7 @@ RegisterCommand('screenshotobject', async (source, args) => {
 	SetPlayerControl(playerId, true);
 	SetModelAsNoLongerNeeded(modelHash);
 	startWeatherResource();
+	endScreenshotSession();
 	DestroyAllCams(true);
 	DestroyCam(cam, true);
 	RenderScriptCams(false, false, 0, true, false, 0);
@@ -694,6 +786,7 @@ on('onResourceStop', (resName) => {
 	if (GetCurrentResourceName() != resName) return;
 
 	startWeatherResource();
+	endScreenshotSession();
 	clearInterval(interval);
 	SetPlayerControl(playerId, true);
 	FreezeEntityPosition(ped, false);
