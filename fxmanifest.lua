@@ -17,11 +17,15 @@ files {
 }
 
 client_script 'client.js'
+<<<<<<< Updated upstream
 
 server_scripts {
     'server.lua',
     'server.js'
 }
+=======
+server_script 'server.js'
+>>>>>>> Stashed changes
 
 dependencies {
 	'screenshot-basic',
