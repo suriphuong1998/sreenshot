@@ -24,10 +24,8 @@ let cam;
 let camInfo;
 let ped;
 let interval;
-let hideHeadWithResetFlag = true;
 const playerId = PlayerId();
 let QBCore = null;
-const HEAD_RESET_FLAG = 166;
 
 if (config.useQBVehicles) {
 	QBCore = exports[config.coreResourceName].GetCoreObject();
@@ -72,14 +70,10 @@ async function takeScreenshotForComponent(pedType, type, component, drawable, te
 
 	await Delay(50);
 
-	hideHeadWithResetFlag = shouldHideHeadWithResetFlag(type, component);
-	applyInvisibleHead(ped);
-
 	SetEntityRotation(ped, camInfo.rotation.x, camInfo.rotation.y, camInfo.rotation.z, 2, false);
-	await Delay(150);
 
 	const componentName = componentNames[component] || `component_${component}`;
-	const fileName = `${componentName}_${drawable}${texture ? `_${texture}` : ''}`;
+	const fileName = `${componentName}_${drawable}${texture ? `_${texture}`: ''}.png`;
 	const fullPath = `clothings/${pedType}/${componentName}/${fileName}`;
 	emitNet('takeScreenshot', fullPath, 'clothing');
 	await Delay(2000);
@@ -178,32 +172,6 @@ function ClearAllPedProps() {
 	}
 }
 
-function shouldHideHeadWithResetFlag(type, component) {
-	// Flag 166 an dau nhung cung an mu / kinh / mask
-	if (type === 'PROPS' && (component === 0 || component === 1 || component === 2)) {
-		return false;
-	}
-	if (type === 'CLOTHING' && (component === 1 || component === 2)) {
-		return false;
-	}
-	return true;
-}
-
-function applyInvisibleHead(targetPed) {
-	if (!targetPed) return;
-
-	SetPedComponentVariation(targetPed, 0, -1, 0, 0);
-	SetPedComponentVariation(targetPed, 2, -1, 0, 0);
-
-	for (let overlay = 0; overlay <= 12; overlay++) {
-		SetPedHeadOverlay(targetPed, overlay, 255, 0.0);
-	}
-
-	if (typeof UpdatePedVariation === 'function') {
-		UpdatePedVariation(targetPed, false, true, true, true, false);
-	}
-}
-
 async function ResetPedComponents() {
 
 	if (config.debug) console.log(`DEBUG: Resetting Ped Components`);
@@ -212,8 +180,9 @@ async function ResetPedComponents() {
 
 	await Delay(150);
 
-	applyInvisibleHead(ped);
+	SetPedComponentVariation(ped, 0, 0, 1, 0); // Head
 	SetPedComponentVariation(ped, 1, 0, 0, 0); // Mask
+	SetPedComponentVariation(ped, 2, -1, 0, 0); // Hair
 	SetPedComponentVariation(ped, 7, 0, 0, 0); // Accessories
 	SetPedComponentVariation(ped, 5, 0, 0, 0); // Bags
 	SetPedComponentVariation(ped, 6, -1, 0, 0); // Shoes
@@ -223,7 +192,6 @@ async function ResetPedComponents() {
 	SetPedComponentVariation(ped, 4, -1, 0, 0); // Legs
 	SetPedComponentVariation(ped, 11, -1, 0, 0); // Top
 	SetPedHairColor(ped, 45, 15);
-	applyInvisibleHead(ped);
 
 	ClearAllPedProps();
 
@@ -368,9 +336,6 @@ RegisterCommand('screenshot', async (source, args) => {
 
 			interval = setInterval(() => {
 				ClearPedTasksImmediately(ped);
-				if (hideHeadWithResetFlag) {
-					SetPedResetFlag(ped, HEAD_RESET_FLAG, true);
-				}
 			}, 1);
 
 			for (const type of Object.keys(config.cameraSettings)) {
@@ -516,9 +481,6 @@ RegisterCommand('customscreenshot', async (source, args) => {
 
 			interval = setInterval(() => {
 				ClearPedTasksImmediately(ped);
-				if (hideHeadWithResetFlag) {
-					SetPedResetFlag(ped, HEAD_RESET_FLAG, true);
-				}
 			}, 1);
 
 			const pedType = modelHash === GetHashKey('mp_m_freemode_01') ? 'male' : 'female';
