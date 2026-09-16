@@ -71,9 +71,10 @@ async function takeScreenshotForComponent(pedType, type, component, drawable, te
 	await Delay(50);
 
 	SetEntityRotation(ped, camInfo.rotation.x, camInfo.rotation.y, camInfo.rotation.z, 2, false);
+	HidePedHeadMesh(ped);
 
 	const componentName = componentNames[component] || `component_${component}`;
-	const fileName = `${componentName}_${drawable}${texture ? `_${texture}`: ''}.png`;
+	const fileName = `${componentName}_${drawable}${texture ? `_${texture}`: ''}.webp`;
 	const fullPath = `clothings/${pedType}/${componentName}/${fileName}`;
 	emitNet('takeScreenshot', fullPath, 'clothing');
 	await Delay(2000);
@@ -172,6 +173,22 @@ function ClearAllPedProps() {
 	}
 }
 
+function HidePedHeadMesh(targetPed) {
+	SetPedCanHeadIk(targetPed, false);
+	SetPedComponentVariation(targetPed, 2, -1, 0, 0);
+
+	const headCount = GetNumberOfPedDrawableVariations(targetPed, 0);
+	SetPedComponentVariation(targetPed, 0, headCount, 0, 0);
+	SetPedComponentVariation(targetPed, 0, -1, 0, 0);
+
+	SetPedHeadBlendData(targetPed, 0, 0, 0, 0, 0, 0, 0, 0, 0, false);
+	for (let overlay = 0; overlay <= 12; overlay++) {
+		SetPedHeadOverlay(targetPed, overlay, 255, 0.0);
+	}
+
+	SetHeadBlendPaletteColor(targetPed, 0, 255, 0);
+}
+
 async function ResetPedComponents() {
 
 	if (config.debug) console.log(`DEBUG: Resetting Ped Components`);
@@ -180,7 +197,7 @@ async function ResetPedComponents() {
 
 	await Delay(150);
 
-	SetPedComponentVariation(ped, 0, 0, 1, 0); // Head
+	HidePedHeadMesh(ped);
 	SetPedComponentVariation(ped, 1, 0, 0, 0); // Mask
 	SetPedComponentVariation(ped, 2, -1, 0, 0); // Hair
 	SetPedComponentVariation(ped, 7, 0, 0, 0); // Accessories
@@ -194,6 +211,7 @@ async function ResetPedComponents() {
 	SetPedHairColor(ped, 45, 15);
 
 	ClearAllPedProps();
+	HidePedHeadMesh(ped);
 
 	return;
 }
